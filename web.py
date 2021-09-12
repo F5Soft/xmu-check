@@ -41,6 +41,7 @@ class LoginPageParser(HTMLParser):
 
         parser.body['username'] = username
         if parser.salt != b'':
+            # AES password encryption
             iv = random_string(16)
             plain_text = pad(random_string(64) + password.encode('utf-8', 'ignore'), 16, style='pkcs7')
             aes_cipher = AES.new(parser.salt, AES.MODE_CBC, iv)
@@ -48,8 +49,6 @@ class LoginPageParser(HTMLParser):
             parser.body['password'] = base64.b64encode(cipher_text).decode('utf-8', 'ignore')
         else:
             parser.body['password'] = password
-        # parser.body['password'] = password
-
         return parser.body
 
 
@@ -90,24 +89,24 @@ def get_modified_form_data(form_data: list, form_template: list):
     return form_data_modified
 
 
-def checkin(number: str, password: str, old_cookie):
+def checkin(username: str, password: str, old_cookie):
     session = requests.Session()
 
     # get login page
+    url = 'https://ids.xmu.edu.cn/authserver/login?service=https://xmuxg.xmu.edu.cn/login/cas/xmu'
+    headers = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
+                        'Version/14.1.2 Safari/605.1.15',
+        'Accept-Language': 'en-gb',
+        'Referer': 'https://xmuxg.xmu.edu.cn/login',
+        'Connection': 'keep-alive'
+    }
     try:
-        url = 'https://ids.xmu.edu.cn/authserver/login?service=https://xmuxg.xmu.edu.cn/login/cas/xmu'
-        headers = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
-                          'Version/14.1.2 Safari/605.1.15',
-            'Accept-Language': 'en-gb',
-            'Referer': 'https://xmuxg.xmu.edu.cn/login',
-            'Connection': 'keep-alive'
-        }
         res = session.get(url, headers=headers)
     except:
-        return None, False, '错误信息：无法连接学工系统服务器，可能开启了 VPN 校内访问，或 xmuxg 系统维护中'
+        return None, False, '错误信息：无法连接统一身份认证服务器，可能开启了 VPN 校内访问，或学工系统维护中'
 
     # post login form
     headers = {
@@ -119,67 +118,74 @@ def checkin(number: str, password: str, old_cookie):
         'Referer': 'https://ids.xmu.edu.cn/authserver/login?service=https://xmuxg.xmu.edu.cn/login/cas/xmu',
         'Connection': 'keep-alive'
     }
-    body = LoginPageParser.create_body(res.text, number, password)
-    res = session.post(url, body, headers=headers, allow_redirects=True)
+    body = LoginPageParser.create_body(res.text, username, password)
+    try:
+        res = session.post(url, body, headers=headers, allow_redirects=True)
+    except:
+        return None, False, '错误信息：无法连接统一身份认证服务器，可能开启了 VPN 校内访问，或学工系统维护中'
+    if '您提供的用户名或者密码有误' in res.text:
+        return None, False, f'错误信息：登录失败，用户名 {username} 或密码 {password} 错误'
     cookie = res.cookies.get('SAAS_U')
 
-    # if encryption fails, use legacy password to login
-    if cookie is None:
-        body['password'] = password
-        res = session.post(url, body, headers=headers, allow_redirects=True)
-        cookie = res.cookies.get('SAAS_U')
-
-    # cannot login
+    # need captcha to login, use old cookie to try
     if cookie is None:
         if old_cookie is not None:
             requests.utils.add_dict_to_cookiejar(session.cookies, {
                 'SAAS_S_ID': 'xmu',
                 'SAAS_U': old_cookie
             })
-        elif '您提供的用户名或者密码有误' in res.text:
-            return None, False, '错误信息：登录失败，用户名或密码错误。如需修改密码或取消自动打卡，请回复该邮件联系'
+            use_old_cookie = True        
         else:
-            return None, False, '错误信息：登录失败，需要验证码（运气原因或密码强度过低）'
+            return None, False, f'错误信息：登录失败，需要验证码（运气原因，或密码 {password} 强度过低、输入错误次数过多）'
 
     # get business id
+    url = 'https://xmuxg.xmu.edu.cn/api/app/214/business/now'
+    headers = {
+        'Accept': '*/*',
+        'Accept-Language': 'en-gb',
+        'Content-Type': 'application/json',
+        'Host': 'xmuxg.xmu.edu.cn',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
+                        'Version/14.1.2 Safari/605.1.15',
+        'Referer': 'https://xmuxg.xmu.edu.cn/app/214',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'X-Requested-With': 'XMLHttpRequest'
+    }
     try:
-        url = 'https://xmuxg.xmu.edu.cn/api/app/214/business/now'
-        headers = {
-            'Accept': '*/*',
-            'Accept-Language': 'en-gb',
-            'Content-Type': 'application/json',
-            'Host': 'xmuxg.xmu.edu.cn',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
-                          'Version/14.1.2 Safari/605.1.15',
-            'Referer': 'https://xmuxg.xmu.edu.cn/app/214',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
         res = session.get(url, headers=headers)
         business_id = str(res.json()['data'][0]['business']['id'])
     except:
-        return cookie, False, '错误信息：无法获取今日打卡表单，可能 xmuxg 系统维护中'
-
+        if use_old_cookie:
+            return None, False, f'错误信息：登录失败，需要验证码（运气原因，或密码 {password} 强度过低、输入错误次数过多）'
+        else:
+            return cookie, False, '错误信息：无法获取今日打卡表单，可能学工系统维护中'
+    
+    # get form template
+    url = f'https://xmuxg.xmu.edu.cn/api/formEngine/business/{business_id}/formRenderData?playerId=owner'
     try:
-        # get form template
-        url = f'https://xmuxg.xmu.edu.cn/api/formEngine/business/{business_id}/formRenderData?playerId=owner'
         res = session.get(url, headers=headers)
         form_template = res.json()['data']['components']
+    except:
+        return cookie, False, '错误信息：无法获取今日打卡表单模版，可能学工系统维护中'
 
-        # get my form instance
-        url = f'https://xmuxg.xmu.edu.cn/api/formEngine/business/{business_id}/myFormInstance'
+    # get my form instance
+    url = f'https://xmuxg.xmu.edu.cn/api/formEngine/business/{business_id}/myFormInstance'
+    try:
         res = session.get(url, headers=headers)
         form = res.json()['data']
         form_id = form['id']
         form_data = form['formData']
-
-        # post change
-        url = f'https://xmuxg.xmu.edu.cn/api/formEngine/formInstance/{form_id}'
-        body = {'formData': get_modified_form_data(
-            form_data, form_template), 'playerId': 'owner'}
-        session.post(url, json=body, headers=headers)
     except:
-        return cookie, False, '错误信息：XMU-Check 内部错误，请回复该邮件联系'
+        return cookie, False, '错误信息：无法获取昨日打卡信息，可能学工系统维护中'
+    
+    # post changes
+    url = f'https://xmuxg.xmu.edu.cn/api/formEngine/formInstance/{form_id}'
+    body = {'formData': get_modified_form_data(
+        form_data, form_template), 'playerId': 'owner'}
+    try:
+        res = session.post(url, json=body, headers=headers)
+    except:
+        return cookie, False, '错误信息：无法提交打卡表单，可能学工系统维护中'
 
     return cookie, True, ''
