@@ -29,7 +29,7 @@ class LoginPageParser(HTMLParser):
 
     @staticmethod
     def create_body(html: str, username: str, password: str) -> dict:
-        def random_string(length: int):
+        def random_bytes(length: int):
             result = ''
             chars = 'ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678'
             for i in range(length):
@@ -42,8 +42,8 @@ class LoginPageParser(HTMLParser):
         parser.body['username'] = username
         if parser.salt != b'':
             # AES password encryption
-            iv = random_string(16)
-            plain_text = pad(random_string(64) + password.encode('utf-8', 'ignore'), 16, style='pkcs7')
+            iv = random_bytes(16)
+            plain_text = pad(random_bytes(64) + password.encode('utf-8', 'ignore'), 16, 'pkcs7')
             aes_cipher = AES.new(parser.salt, AES.MODE_CBC, iv)
             cipher_text = aes_cipher.encrypt(plain_text)
             parser.body['password'] = base64.b64encode(cipher_text).decode('utf-8', 'ignore')
@@ -123,7 +123,7 @@ def checkin(username: str, password: str, old_cookie):
         res = session.post(url, body, headers=headers, allow_redirects=True)
     except:
         return None, False, '错误信息：无法连接统一身份认证服务器，可能开启了 VPN 校内访问，或学工系统维护中'
-    if '您提供的用户名或者密码有误' in res.text:
+    if '您提供的用户名或者密码有误' in res.text or 'username or password is incorrect' in res.text:
         return None, False, f'错误信息：登录失败，用户名 {username} 或密码 {password} 错误'
     cookie = res.cookies.get('SAAS_U')
 
