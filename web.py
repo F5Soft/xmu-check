@@ -1,4 +1,5 @@
 import base64
+import time
 import random
 from html.parser import HTMLParser
 
@@ -98,7 +99,7 @@ def checkin(username: str, password: str, old_cookie):
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Encoding': 'gzip, deflate, br',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
-                        'Version/14.1.2 Safari/605.1.15',
+                      'Version/14.1.2 Safari/605.1.15',
         'Accept-Language': 'en-gb',
         'Referer': 'https://xmuxg.xmu.edu.cn/login',
         'Connection': 'keep-alive'
@@ -107,6 +108,7 @@ def checkin(username: str, password: str, old_cookie):
         res = session.get(url, headers=headers)
     except:
         return None, False, '错误信息：无法连接统一身份认证服务器，可能开启了 VPN 校内访问，或学工系统维护中'
+    time.sleep(5)
 
     # post login form
     headers = {
@@ -134,9 +136,11 @@ def checkin(username: str, password: str, old_cookie):
                 'SAAS_S_ID': 'xmu',
                 'SAAS_U': old_cookie
             })
-            use_old_cookie = True        
+            use_old_cookie = True
+            session = requests.Session()
         else:
             return None, False, f'错误信息：登录失败，需要验证码（运气原因，或密码 {password} 强度过低、输入错误次数过多）'
+    time.sleep(5)
 
     # get business id
     url = 'https://xmuxg.xmu.edu.cn/api/app/214/business/now'
@@ -146,7 +150,7 @@ def checkin(username: str, password: str, old_cookie):
         'Content-Type': 'application/json',
         'Host': 'xmuxg.xmu.edu.cn',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
-                        'Version/14.1.2 Safari/605.1.15',
+                      'Version/14.1.2 Safari/605.1.15',
         'Referer': 'https://xmuxg.xmu.edu.cn/app/214',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
@@ -160,7 +164,7 @@ def checkin(username: str, password: str, old_cookie):
             return None, False, f'错误信息：登录失败，需要验证码（运气原因，或密码 {password} 强度过低、输入错误次数过多）'
         else:
             return cookie, False, '错误信息：无法获取今日打卡表单，可能学工系统维护中'
-    
+
     # get form template
     url = f'https://xmuxg.xmu.edu.cn/api/formEngine/business/{business_id}/formRenderData?playerId=owner'
     try:
@@ -178,7 +182,8 @@ def checkin(username: str, password: str, old_cookie):
         form_data = form['formData']
     except:
         return cookie, False, '错误信息：无法获取昨日打卡信息，可能学工系统维护中'
-    
+    time.sleep(5)
+
     # post changes
     url = f'https://xmuxg.xmu.edu.cn/api/formEngine/formInstance/{form_id}'
     body = {'formData': get_modified_form_data(
