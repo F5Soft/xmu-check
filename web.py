@@ -139,7 +139,7 @@ def checkin(username: str, password: str, old_cookie):
             use_old_cookie = True
             session = requests.Session()
         else:
-            return None, False, f'错误信息：登录失败，需要验证码（运气原因，或密码 {password} 强度过低、输入错误次数过多）'
+            return None, False, '错误信息：登录失败，需要验证码（运气原因，或密码强度过低、输入错误次数过多）'
     time.sleep(5)
 
     # get business id
@@ -161,7 +161,7 @@ def checkin(username: str, password: str, old_cookie):
         business_id = str(res.json()['data'][0]['business']['id'])
     except:
         if use_old_cookie:
-            return None, False, f'错误信息：登录失败，需要验证码（运气原因，或密码 {password} 强度过低、输入错误次数过多）'
+            return None, False, '错误信息：登录失败，需要验证码（运气原因，或密码强度过低、输入错误次数过多）'
         else:
             return cookie, False, '错误信息：无法获取今日打卡表单，可能学工系统维护中'
 
