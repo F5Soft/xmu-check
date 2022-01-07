@@ -126,10 +126,11 @@ def checkin(username: str, password: str, old_cookie):
     except:
         return None, False, '错误信息：无法连接统一身份认证服务器，可能开启了 VPN 校内访问，或学工系统维护中'
     if '您提供的用户名或者密码有误' in res.text or 'username or password is incorrect' in res.text:
-        return None, False, f'错误信息：登录失败，用户名 {username} 或密码 {password} 错误'
+        return None, False, f'错误信息：登录失败，用户名 {username} 或密码 {password} 错误，您可前往 https://f5soft.site/app/xmu-check/ 更新密码'
     cookie = res.cookies.get('SAAS_U')
 
     # need captcha to login, use old cookie to try
+    use_old_cookie = False
     if cookie is None:
         if old_cookie is not None:
             requests.utils.add_dict_to_cookiejar(session.cookies, {
