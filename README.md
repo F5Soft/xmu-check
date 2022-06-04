@@ -6,11 +6,11 @@ XMU-Check 自动打卡API。地址：https://f5soft.site/app/xmu-check/
 
 ### 1. 安装环境
 
-需要Python3运行环境。通过`requests`发送HTTP请求，通过`pycryptodome`进行密码的AES加密
+需要Python3运行环境。通过`requests`发送HTTP请求，通过`pycryptodome`进行密码的AES加密，通过`pillow`解析图片验证码。
 
 ```bash
 sudo apt install python3
-python3 -m pip install requests pycryptodome
+python3 -m pip install requests pycryptodome pillow
 ```
 
 ### 2. API接口
@@ -19,10 +19,18 @@ python3 -m pip install requests pycryptodome
 
 ```python
 import web
-cookie, status, msg = web.checkin('学号', '密码', None)
+status, msg = web.checkin('学号', '密码')
 ```
 
-第三个参数为Cookie值，可为空。当用户名+密码登录失败时尝试使用。`checkin`函数返回三元组，其中`cookie`为新的Cookie值，`status`为打卡成功标志`True`或`False`，`msg`为打卡失败时的错误信息。
+或
+
+```python
+import web
+status, msg = web.checkin('学号', '密码', 'VPN用户名', 'VPN密码')
+```
+
+参数：VPN用户名和VPN密码可为空，用于 xmuxg.xmu.edu.cn 仅限校内访问时的情况。
+返回值：`status`为打卡成功标志`True`或`False`，`msg`在打卡失败时为错误信息，在打卡成功时为用户的cookie。
 
 ### 3. 原理说明
 
@@ -33,6 +41,8 @@ cookie, status, msg = web.checkin('学号', '密码', None)
 首先进行人工打卡操作，在浏览器的开发人员工具的Networks中查看每个请求头，记下关键的请求头字段，如`User-Agent`、`Referrer`等，使用`requests`模块构造相同的HTTP请求。
 
 系统通过Cookie同用户维持会话，因此还需要记下服务器响应头的`Set-Cookie`字段，并在之后的请求中附上这些Cookie。这可以用`requests`模块中的`Session`类实现。
+
+当 xmuxg.xmu.edu.cn 仅限校内访问时，系统将使用VPN用户名和VPN密码登陆 applg.xmu.edu.cn，进行校内资源访问的认证，并通过`pillow`解析图片验证码。
 
 #### 模拟登录和密码加密
 
