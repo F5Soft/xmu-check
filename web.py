@@ -110,6 +110,7 @@ def checkin(username: str, password: str, vpn_username: str = None, vpn_password
     # get front page
     url = 'https://xmuxg.xmu.edu.cn'
     res = session.get(url, headers=headers, allow_redirects=True)
+    time.sleep(1)
 
     # applg (or webvpn) bypass
     if not res.url.startswith('https://xmuxg.xmu.edu.cn/'):
@@ -164,6 +165,7 @@ def checkin(username: str, password: str, vpn_username: str = None, vpn_password
     # post login form
     body = LoginPageParser.create_body(res.text, username, password)
     res = session.post(url, body, headers=headers, allow_redirects=True)
+    time.sleep(2)
 
     # incorrect password
     if '您提供的用户名或者密码有误' in res.text or 'username or password is incorrect' in res.text:
@@ -179,11 +181,13 @@ def checkin(username: str, password: str, vpn_username: str = None, vpn_password
     headers['X-Requested-With'] = 'XMLHttpRequest'
     res = session.get(url, headers=headers)
     business_id = str(res.json()['data'][0]['business']['id'])
+    time.sleep(1)
 
     # get form template
     url = f'https://xmuxg.xmu.edu.cn/api/formEngine/business/{business_id}/formRenderData?playerId=owner'
     res = session.get(url, headers=headers)
     form_template = res.json()['data']['components']
+    time.sleep(1)
 
     # get my form instance
     url = f'https://xmuxg.xmu.edu.cn/api/formEngine/business/{business_id}/myFormInstance'
