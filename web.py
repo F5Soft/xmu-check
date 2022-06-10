@@ -123,6 +123,7 @@ def checkin(username: str, password: str, vpn_username: str = None, vpn_password
         while True:
             # get chapta
             url = 'https://applg.xmu.edu.cn/wengine-auth/login/image'
+            headers['Referer'] = res.url
             res = session.get(url, headers=headers)
             img = Image.open(BytesIO(base64.b64decode(res.json()['p'][22:])))
             px = img.load()
@@ -163,6 +164,7 @@ def checkin(username: str, password: str, vpn_username: str = None, vpn_password
     time.sleep(2)
 
     # post login form
+    headers['Referer'] = res.url
     body = LoginPageParser.create_body(res.text, username, password)
     res = session.post(url, body, headers=headers, allow_redirects=True)
     time.sleep(2)
@@ -178,6 +180,7 @@ def checkin(username: str, password: str, vpn_username: str = None, vpn_password
 
     # get business id
     url = 'https://xmuxg.xmu.edu.cn/api/app/214/business/now'
+    headers['Referer'] = 'https://xmuxg.xmu.edu.cn/app/214'
     headers['X-Requested-With'] = 'XMLHttpRequest'
     res = session.get(url, headers=headers)
     business_id = str(res.json()['data'][0]['business']['id'])
@@ -199,6 +202,7 @@ def checkin(username: str, password: str, vpn_username: str = None, vpn_password
 
     # post changes
     url = f'https://xmuxg.xmu.edu.cn/api/formEngine/formInstance/{form_id}'
+    headers['Connection'] = 'close'
     body = {'formData': get_modified_form_data(
         form_data, form_template), 'playerId': 'owner'}
     res = session.post(url, json=body, headers=headers)
